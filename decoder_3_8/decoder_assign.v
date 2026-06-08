@@ -1,12 +1,12 @@
-module decoder_assign(
+module decoder_assign (
 
-	input	[2:0]	date_1,
+	input	[2:0]	data_1,
 	output	[7:0]	onehot_o
 
 );
 
 
-assign	onehot_o = 8'b1	<< data_i;
+	assign	onehot_o = 8'b1	<< data_i;
 
 
 endmodule
