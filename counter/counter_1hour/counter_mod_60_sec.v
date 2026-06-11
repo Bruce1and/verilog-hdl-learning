@@ -1,18 +1,22 @@
-module	counter_mod_60	(
+module	counter_mod_60_sec (
 	
 	input			clk_i,
 	input			rst_n,
+	input			rst_sync,
+	output			en_min,
 	output	reg	[3:0]	cnt_ten,
 	output	reg	[2:0]	cnt_six
-
 );
 	
-	wire		en_six;
 
+	reg	en_six;
+	assign	en_min = (cnt_ten==4'd9 && cnt_six==3'd5);
 
 
 	always	@(posedge clk_i or negedge rst_n)begin
 		if(!rst_n)
+			cnt_ten <= 4'b0;
+		else if(rst_sync)
 			cnt_ten <= 4'b0;
 		else if(cnt_ten	== 4'd9)
 			cnt_ten	<= 4'b0;
@@ -25,7 +29,9 @@ module	counter_mod_60	(
 	always	@(posedge clk_i or negedge rst_n)begin
 		if(!rst_n)
 			en_six <= 1'b0;
-		else if(cnt_ten ==4'd9)
+		else if(rst_sync)
+			en_six <= 1'b0;
+		else if(cnt_ten== 4'd9)
 			en_six <= 1'b1;
 		else
 			en_six <= 1'b0;
@@ -34,7 +40,9 @@ module	counter_mod_60	(
 
 	always	@(posedge clk_i or negedge rst_n)begin
 		if(!rst_n)
-			cnt_six	<=3'b0;
+			cnt_six<=3'b0;
+		else if(rst_sync)
+			cnt_six<=3'b0;
 		else if(en_six == 1'b1)begin
 			if(cnt_six == 3'd5)
 				cnt_six	<= 3'b0;
