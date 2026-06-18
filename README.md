@@ -1,27 +1,23 @@
-## VerilogHDL Beginning codes collection
-### About
-I am complete beginner when it comes to programming.This is just a record of my learning process with Verilog HDL.You can find the code you need in the table of contents.
-### Start
-Install Icarus Verilog:
-
-windows
-
-``winget install Icarus.Verilog``
-
-debain
-
-``sudo apt install iverilog gtkwave``
-
-add these codes into your testbench file
-
-``initial begin
+# VerilogHDL Beginning codes
+## About
+This is a simple IP database of mine, which I will continue to update in the future.
+## Start
+### Install
+Install iverilog using a package manager  
+Windows  
+``winget install Icarus.Verilog``  
+Debain  
+``sudo apt install iverilog gtkwave``  
+Add these codes to your testbench file  
+````
+initial begin
     $dumpfile("wave.vcd");
     $dumpvars(0,testbench);
     #10000;
     $finish;
-end``
-
-run these commend in your shell
+end
+````
+run these commend in your shell  
 
 ``iverilog -o output_file testbench.v you_module.v``
 
@@ -29,12 +25,12 @@ run these commend in your shell
 
 ``gtkwave wave.vcd``
 
-
+## Testing
 ### Testbench
 This is a simple testbench file
 ````testbench
 `timescale  1ns/1ps
-module  module_name;
+module  testbensh;
     
     reg     data_1;            
     reg     clk_i;
