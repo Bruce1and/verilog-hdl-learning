@@ -3,10 +3,32 @@
 I am complete beginner when it comes to programming.This is just a record of my learning process with Verilog HDL.You can find the code you need in the table of contents.
 ### Start
 Install Icarus Verilog:
+
 windows
+
 ``winget install Icarus.Verilog``
+
 debain
-``sudo apt install iverilog``
+
+``sudo apt install iverilog gtkwave``
+
+add these codes into your testbench file
+
+``initial begin
+    $dumpfile("wave.vcd");
+    $dumpvars(0,testbench);
+    #10000;
+    $finish;
+end``
+
+run these commend in your shell
+
+``iverilog -o output_file testbench.v you_module.v``
+
+``vvp output_file``
+
+``gtkwave wave.vcd``
+
 
 ### Testbench
 This is a simple testbench file
