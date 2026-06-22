@@ -4,18 +4,27 @@ module light_ctrl_tb;
     //reg data_i;
     reg clk_i;
     reg rst_n;
-    wire [5:0] data_o;
+    wire yellow_o;
+    wire green_o;
+    wire red_o;
+    wire time_done;
+    wire sign_start;
+    wire sign_cycle;
 
-    light_ctrl u0(
+    light_ctrl u0 (
         .clk_i(clk_i),
         .rst_n(rst_n),
-        .data_i(data_i),
-        .data_0(data_0),
+        .yellow_o(yellow_o),
+        .green_o(green_o),
+        .red_o(red_o),
+        .time_done(time_done),
+        .sign_start(sign_start),
+        .sign_cycle(sign_cycle)
     );
 
 
 
-    intial  begin
+    initial begin
         clk_i       =   1'b0;
         rst_n       =   1'b1;
         #80 rst_n   =   1'b0;
@@ -27,9 +36,9 @@ module light_ctrl_tb;
     end
 
     initial begin
-        $dumpfile("light_ctrl_wave.vcd");
+        $dumpfile("wave/light_ctrl_wave.vcd");
         $dumpvars(0,light_ctrl_tb);
-        #1000;
+        #10000;
         $finish;
     end
 

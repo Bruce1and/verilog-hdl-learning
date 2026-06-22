@@ -1,52 +1,51 @@
 module light_ctrl (
     input clk_i,
     input rst_n,
-    output [5:0] light_o
+    input timer_done,
+    input sign_start,
+    output reg sign_cycle,
+    output reg [1:0] state
 );
 
-    localparam S1_RED = 3'd0;
-    localparam S2_GREEN = 3'd1;
-    localparam S3_YELLOW = 3'd2;
+    localparam RED = 2'd0;
+    localparam GREEN = 2'd1;
+    localparam YELLOW = 2'd2;
 
-    reg [2:0] state;
-    reg [2:0] next_state;
-    reg [6:0] count_public;
+    reg nearly_done;
+    reg [1:0] next_state;
 
     always @(posedge clk_i or negedge rst_n) begin
         if (!rst_n) begin
-            state <= S1_RED;
+            state <= RED;
         end else begin
             state <= next_state;
         end
     end
 
-    always @(posedge clk_i or negedge rst_n) begin
-        if (!rst_n) begin
-            count_public <= 7'd0;
-        end else if (count_public == 7'd99) begin
-            count_public <= 7'd0;
-        end else begin
-            count_public <= count_public + 7'b1;
-        end
-    end
+    always @(*) begin
+        next_state = state;
+        sign_cycle = 1'd0;
 
-    assign next_state = (count_public == 7'b49) ? S2_GREEN : S1_RED;
-    assign next_state = (count_public == 7'b94) ? S3_YELLOW : S2_GREEN;
-    assign next_state = (count_public == 7'b99) ? S1_RED : S3_YELLOW;
+        case (state)
+            RED : begin
+                if (sign_start) begin
+                    next_state = GREEN;
+                end
+            end
 
-    always @(posedge clk_i or negedge rst_n) begin
-        if (!rst_n) begin
-            light_o <= 6'd0;
-        end else if (light_o == 6'd0) begin
-            case (state)
-                S1_RED : light_o <= 6'd49;
-                S2_GREEN : light_o <= 6'd44;
-                S3_YELLOW : light_o <= 6'd4;
-                default : light_o <= 6'd49;
-            endcase
-        end else begin
-            light_o <= light_o - 6'd1;
-        end
+            GREEN : begin
+                if (timer_done) begin
+                    next_state = YELLOW;
+                end
+            end
+
+            YELLOW : begin
+                if (timer_done) begin
+                    next_state = RED;
+                    sign_cycle = 1'b1;
+                end
+            end
+        endcase
     end
 
 endmodule
