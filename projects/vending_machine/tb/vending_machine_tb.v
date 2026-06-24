@@ -39,6 +39,10 @@ module vending_machine_tb;
         cancel_i = 1'd0;
         sel_product = 4'd1;
 
+        #4 coin_i = 4'd0;
+        #4 coin_i = 4'd0;
+        #4 coin_i = 4'd0;
+        #4 coin_i = 4'd0;
         #4 coin_i = 4'd1;
         #4 coin_i = 4'd0;
         #4 coin_i = 4'd2;
@@ -66,10 +70,23 @@ module vending_machine_tb;
         #4 coin_i = 4'd0;
         #4 coin_i = 4'd1;
         #4 coin_i = 4'd0;
+
+
+        #12 coin_i = 4'd5;
+        #4 coin_i = 4'd0;
+
     end
     //每#4是一个时钟周期，#2是半个，所以要求优先考虑#4
-    always  begin
+    always begin
         #2  clk_i   =   ~clk_i;
+    end
+
+    always @(*) begin
+        if (coin_i == 4'd5) begin
+            cancel_i = 1'd1;
+        end else begin
+            cancel_i = 1'd0;
+        end
     end
 
     initial begin
