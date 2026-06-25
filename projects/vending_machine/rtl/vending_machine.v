@@ -1,26 +1,27 @@
 module vending_machine (
     input clk_i,
     input rst_n,
+
     input cancel_i,
+
     input [3:0] coin_i,
     input [3:0] sel_product,
+
     output reg dispense_o,
     output reg [3:0] change_o,
     output reg [3:0] refund_o,
     output reg [3:0] amount_o
 );
 
-    // define state
     localparam IDLE = 2'd0;
     localparam DISPENSE = 2'd1;
     localparam CANCEL = 2'd2;
 
-    // 
     localparam AMOUNT_MAX = 4'd10;
     localparam PAY_TIME = 4'd3;
 
-    reg pay_time_done;
-    reg [3:0] pay_time_cnt;
+    reg pay_done;
+    reg [3:0] pay_time;
 
     reg [1:0] state;
     reg [1:0] next_state;
@@ -39,25 +40,33 @@ module vending_machine (
 
     always @(posedge clk_i or negedge rst_n) begin
         if (!rst_n) begin
-            pay_time_cnt <= 4'd0;
-            pay_time_done <= 1'd0;
+            state <= IDLE;
+        end else begin
+            state <= next_state;
+        end
+    end
+
+    always @(posedge clk_i or negedge rst_n) begin
+        if (!rst_n) begin
+            pay_time <= 4'd0;
+            pay_done <= 1'd0;
         end else if (!coin_i) begin
-            if (pay_time_cnt == PAY_TIME - 4'd1) begin
-                pay_time_cnt <= 4'd0;
-                pay_time_done <= 1'd1;
+            if (pay_time == PAY_TIME - 4'd1) begin
+                pay_time <= 4'd0;
+                pay_done <= 1'd1;
             end else begin
-                pay_time_cnt <= pay_time_cnt + 4'd1;
+                pay_time <= pay_time + 4'd1;
             end
         end else begin
-            pay_time_cnt <= 4'd0;
-            pay_time_done <= 1'd0;
+            pay_time <= 4'd0;
+            pay_done <= 1'd0;
         end
     end
 
     always @(posedge clk_i or negedge rst_n) begin
         if (!rst_n) begin
             amount_cnt <= 4'd0;
-        end else if (!pay_time_done) begin
+        end else if (!pay_done) begin
             if (coin_i) begin
                 if (amount_cnt == AMOUNT_MAX) begin
                     amount_cnt <= amount_cnt;
@@ -70,71 +79,69 @@ module vending_machine (
         end
     end
 
-    always @(posedge clk_i) begin
-        amount_o <= amount_cnt;
-    end
-
-    always @(posedge clk_i or negedge rst_n) begin
+    always @(*) begin
         if (!rst_n) begin
-            dispense_o <= 1'd0;
-            change_o <= 4'd0;
-        end else if (pay_time_done && amount_cnt >= product_price) begin
-            dispense_o <= 1'd1;
-            change_o <= amount_cnt - product_price;
+            next_state = IDLE;
         end else begin
-            dispense_o <= 1'd0;
-            change_o <= 4'd0;
-        end
-    end
-
-    always @(posedge clk_i or negedge rst_n) begin
-        if (!rst_n) begin
-            state <= 1'b0;
-        end else begin
-            state <= next_state;
-        end
-    end
-
-    always @(posedge clk_i or negedge rst_n) begin
-        if (!rst_n) begin
-            refund_o <= 4'd0;
-            next_state <= IDLE;
-        end else begin
-            case (next_state)
+            case (state)
                 IDLE : begin
-                    refund_o <= 4'd0;
-                    if (!cancel_i) begin
-                        if (amount_cnt >= product_price && pay_time_done) begin
-                            next_state <= DISPENSE;
-                        end else if (amount_cnt && pay_time_done) begin
-                            next_state <= CANCEL;
-                        end else begin
-                            next_state <= IDLE;
-                        end
+                    if (amount_cnt >= product_price && pay_done) begin
+                        next_state = DISPENSE;
+                    end else if (cancel_i) begin
+                        next_state = CANCEL;
                     end else begin
-                        next_state <= CANCEL;
+                        next_state = IDLE;
                     end
                 end
 
                 DISPENSE : begin
-                    if (!cancel_i) begin
-                        next_state <= IDLE;
+                    if (cancel_i) begin
+                        next_state = CANCEL;
                     end else begin
-                        next_state <= CANCEL;
+                        next_state = IDLE;
                     end
                 end
 
                 CANCEL : begin
-                    amount_o <= 1'd0;
-                    refund_o <= amount_cnt;
-                    next_state <= IDLE;
+                    next_state = IDLE;
                 end
 
                 default : begin
-                    next_state <= IDLE;
+                    next_state = IDLE;
+                end
+            endcase
+        end
+    end
+
+    always @(posedge clk_i or negedge rst_n) begin
+        if (!rst_n) begin
+            amount_o <= 4'd0;
+            refund_o <= 4'd0;
+            change_o <= 4'd0;
+            dispense_o <= 1'd0;
+        end else begin
+            case (state)
+                IDLE : begin
+                    if (pay_done && amount_cnt < product_price) begin
+                        refund_o <= amount_cnt;
+                    end else begin
+                        amount_o <= amount_cnt;
+                        change_o <= 4'd0;
+                        dispense_o <= 1'd0;
+                    end
+                end
+                DISPENSE : begin
+                    refund_o <= 4'd0;
+                    change_o <= amount_cnt - product_price;
+                    dispense_o <= 1'd1;
+                end
+                CANCEL : begin
+                    amount_o <= 4'd0;
+                    refund_o <= amount_cnt;
+                    change_o <= 4'd0;
+                    dispense_o <= 1'd0;
                 end
             endcase
         end
     end
 endmodule
-
