@@ -29,8 +29,8 @@ module spi_slave (
     reg [3:0] sclk_rise_cnt;
     reg [3:0] sclk_fall_cnt;
 
-    assign sclk_rise = ~sclk_div & sclk_i;
-    assign sclk_fall = sclk_div & ~sclk_i;
+    wire sclk_rise = ~sclk_div & sclk_i;
+    wire sclk_fall = sclk_div & ~sclk_i;
 
     always @(posedge clk_i or negedge rst_n) begin
         if (!rst_n) begin
@@ -52,9 +52,7 @@ module spi_slave (
         case (state)
             IDLE : begin
                 if (!cs_n_i) begin
-                    next_state = START;
-                end else begin
-                    next_state = IDLE;
+                    next_state = TRANS;
                 end
             end
 
@@ -79,6 +77,9 @@ module spi_slave (
             tx_busy_o <= 1'b1;
             rx_data_o <= 1'b0;
             rx_valid_o <= 1'b0;
+            rx_shift_reg <= 1'b0;
+            tx_shift_reg <= 1'b0;
+            sclk_fall_cnt <= 1'b0;
         end else begin
             case (state)
                 IDLE : begin
@@ -87,13 +88,16 @@ module spi_slave (
                     tx_busy_o <= 1'b1;
                     rx_data_o <= 1'b0;
                     rx_valid_o <= 1'b0;
+                    rx_shift_reg <= 1'b0;
+                    tx_shift_reg <= 1'b0;
+                    sclk_fall_cnt <= 1'b0;
                 end
 
                 TRANS : begin
                     if (sclk_fall) begin
                         tx_shift_reg <= tx_data_i[4'd7 - sclk_fall_cnt];
                         sclk_fall_cnt <= sclk_fall_cnt + 4'd1;
-                    end if (sclk_rias) begin
+                    end if (sclk_rise) begin
                         rx_shift_reg <= {rx_shift_reg[6:0], mosi_i};
                     end
                     tx_done_o <= 1'b0;
