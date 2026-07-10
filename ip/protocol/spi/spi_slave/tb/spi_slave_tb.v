@@ -110,7 +110,7 @@ module spi_slave_tb;
 
         send_data = 8'hAA;
 
-        tx_data = 8'hAA;
+        tx_data = 8'h55;
 
         tx_start = 1;
 
@@ -132,7 +132,7 @@ module spi_slave_tb;
 
         send_data = 8'hFF;
 
-        tx_data = 8'hAA;
+        tx_data = 8'hFF;
 
         tx_start = 1;
 

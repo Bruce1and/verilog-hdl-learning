@@ -1,34 +1,44 @@
 module spi_slave (
     input clk_i,
     input rst_n,
+
+    // 主机发送信号
     input sclk_i,
     input mosi_i,
     input cs_n_i,
+
+    // 从机发送信号数据
     input tx_start_i,
     input [7:0] tx_data_i,
+
+    // 从机发送spi数据
     output reg miso_o,
     output reg tx_busy_o,
     output reg tx_done_o,
+
+    // 从机接收主机spi数据
     output reg rx_valid_o,
     output reg [7:0] rx_data_o
 );
 
-    localparam IDLE = 2'd0;
-    localparam START = 2'd1;
-    localparam TRANS = 2'd2;
-    localparam DONE = 2'd3;
+    // 状态定义
+    localparam IDLE = 3'd0;
+    localparam START = 3'd1;
+    localparam TRANS = 3'd2;
+    localparam DONE = 3'd3;
 
-    reg [1:0] state;
-    reg [1:0] next_state;
+    // 寄存器定义
+    // 状态寄存器定义
+    reg [2:0] state;
+    reg [2:0] next_state;
 
+    // 数据寄存器定义
     reg [7:0] rx_shift_reg;
-    reg tx_shift_reg;
+    reg [7:0] tx_shift_reg;
+
+    reg [3:0] bit_cnt;
 
     reg sclk_div;
-
-    reg [3:0] sclk_rise_cnt;
-    reg [3:0] sclk_fall_cnt;
-
     wire sclk_rise = ~sclk_div & sclk_i;
     wire sclk_fall = sclk_div & ~sclk_i;
 
@@ -52,16 +62,30 @@ module spi_slave (
         case (state)
             IDLE : begin
                 if (!cs_n_i) begin
+                    next_state = START;
+                end else begin
+                    next_state = IDLE;
+                end
+            end
+
+            START : begin
+                if (sclk_rise) begin
                     next_state = TRANS;
+                end else begin
+                    next_state = START;
                 end
             end
 
             TRANS : begin
-                if (cs_n_i) begin
-                    next_state = IDLE;
+                if (bit_cnt == 4'd7 && cs_n_i) begin
+                    next_state = DONE;
                 end else begin
                     next_state = TRANS;
                 end
+            end
+
+            DONE : begin
+                next_state = IDLE;
             end
 
             default : begin
@@ -69,44 +93,140 @@ module spi_slave (
             end
         endcase
     end
+    // model0 : 上升沿采样, 下降沿更新
 
     always @(posedge clk_i or negedge rst_n) begin
         if (!rst_n) begin
-            miso_o <= 1'b0;
-            tx_done_o <= 1'b0;
-            tx_busy_o <= 1'b1;
-            rx_data_o <= 1'b0;
-            rx_valid_o <= 1'b0;
-            rx_shift_reg <= 1'b0;
-            tx_shift_reg <= 1'b0;
-            sclk_fall_cnt <= 1'b0;
+            bit_cnt <= 4'd0;
         end else begin
             case (state)
-                IDLE : begin
-                    miso_o <= 1'b0;
-                    tx_done_o <= 1'b0;
-                    tx_busy_o <= 1'b1;
-                    rx_data_o <= 1'b0;
-                    rx_valid_o <= 1'b0;
-                    rx_shift_reg <= 1'b0;
-                    tx_shift_reg <= 1'b0;
-                    sclk_fall_cnt <= 1'b0;
+                TRANS : begin
+                    if (sclk_rise) begin
+                        bit_cnt <= bit_cnt + 4'd1;
+                    end
                 end
 
-                TRANS : begin
-                    if (sclk_fall) begin
-                        tx_shift_reg <= tx_data_i[4'd7 - sclk_fall_cnt];
-                        sclk_fall_cnt <= sclk_fall_cnt + 4'd1;
-                    end if (sclk_rise) begin
-                        rx_shift_reg <= {rx_shift_reg[6:0], mosi_i};
-                    end
-                    tx_done_o <= 1'b0;
-                    tx_busy_o <= 1'b0;
-                    rx_data_o <= 1'b0;
-                    rx_valid_o <= 1'b0;
+                START : begin
+                    bit_cnt <= 4'd0;
                 end
             endcase
         end
     end
+
+    always @(posedge clk_i or negedge rst_n) begin
+        if (!rst_n) begin
+            rx_shift_reg <= 8'd0;
+        end else begin
+            case (state)
+                START, TRANS : begin
+                    if (sclk_rise) begin
+                        rx_shift_reg <= {rx_shift_reg[6:0], mosi_i};
+                    end
+                end
+            endcase
+        end
+    end
+
+    always @(posedge clk_i or negedge rst_n) begin
+        if (!rst_n) begin
+            rx_data_o <= 8'd0;
+            rx_valid_o <= 1'b0;
+        end else begin
+            case (state)
+                IDLE : begin
+                    rx_valid_o <= 1'b0;
+                end
+
+                DONE : begin
+                    rx_data_o <= rx_shift_reg;
+                    rx_valid_o <= 1'b1;
+                end
+            endcase
+        end
+    end
+
+    always @(posedge clk_i or negedge rst_n) begin
+        if (!rst_n) begin
+            tx_shift_reg <= 8'd0;
+        end else begin
+            case (state)
+                START : begin
+                    tx_shift_reg <= tx_data_i;
+                end
+
+                TRANS : begin
+                    if (sclk_fall) begin
+                        tx_shift_reg <= {tx_shift_reg[6:0], 1'b0};
+                    end
+                end
+            endcase
+        end
+    end
+
+    always @(posedge clk_i or negedge rst_n) begin
+        if (!rst_n) begin
+            tx_busy_o <= 1'b0;
+            tx_done_o <= 1'b0;
+            miso_o <= 1'bz;
+        end else begin
+            case (state)
+                IDLE : begin
+                    tx_done_o <= 1'b0;
+                    tx_busy_o <= 1'b0;
+                end
+
+                START, TRANS : begin
+                    if (sclk_fall) begin
+                        miso_o <= tx_shift_reg[7];
+                    end
+                    tx_busy_o <= 1'b1;
+                end
+
+                DONE : begin
+                    tx_done_o <= 1'b1;
+                    miso_o <= 1'bz;
+                end
+            endcase
+        end
+    end
+
+    // always @(posedge clk_i or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         miso_o <= 1'b0;
+    //         tx_done_o <= 1'b0;
+    //         tx_busy_o <= 1'b1;
+    //         rx_data_o <= 1'b0;
+    //         rx_valid_o <= 1'b0;
+    //         rx_shift_reg <= 1'b0;
+    //         tx_shift_reg <= 1'b0;
+    //         sclk_fall_cnt <= 1'b0;
+    //     end else begin
+    //         case (state)
+    //             IDLE : begin
+    //                 miso_o <= 1'b0;
+    //                 tx_done_o <= 1'b0;
+    //                 tx_busy_o <= 1'b1;
+    //                 rx_data_o <= 1'b0;
+    //                 rx_valid_o <= 1'b0;
+    //                 rx_shift_reg <= 1'b0;
+    //                 tx_shift_reg <= 1'b0;
+    //                 sclk_fall_cnt <= 1'b0;
+    //             end
+
+    //             TRANS : begin
+    //                 if (sclk_fall) begin
+    //                     tx_shift_reg <= tx_data_i[4'd7 - sclk_fall_cnt];
+    //                     sclk_fall_cnt <= sclk_fall_cnt + 4'd1;
+    //                 end if (sclk_rise) begin
+    //                     rx_shift_reg <= {rx_shift_reg[6:0], mosi_i};
+    //                 end
+    //                 tx_done_o <= 1'b0;
+    //                 tx_busy_o <= 1'b0;
+    //                 rx_data_o <= 1'b0;
+    //                 rx_valid_o <= 1'b0;
+    //             end
+    //         endcase
+    //     end
+    // end
 
 endmodule
