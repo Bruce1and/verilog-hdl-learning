@@ -35,24 +35,11 @@ module spi_slave (
     reg [7:0] rx_shift_reg;
     reg [7:0] tx_shift_reg;
 
-    reg [3:0] bit_cnt;
-
     assign miso_o = (!cs_n_i) ? tx_shift_reg[7] : 1'bz;
 
     reg sclk_div;
     wire sclk_rise = ~sclk_div & sclk_i;
     wire sclk_fall = sclk_div & ~sclk_i;
-
-    reg cs_n_div;
-    wire cs_fall = cs_n_div & ~cs_n_i;
-
-    always @(posedge clk_i or negedge rst_n) begin
-        if (!rst_n) begin
-            cs_n_div <= 1'b0;
-        end else begin
-            cs_n_div <= cs_n_i;
-        end
-    end
 
     always @(posedge clk_i or negedge rst_n) begin
         if (!rst_n) begin
@@ -109,24 +96,6 @@ module spi_slave (
 
     always @(posedge clk_i or negedge rst_n) begin
         if (!rst_n) begin
-            bit_cnt <= 4'd0;
-        end else begin
-            case (state)
-                TRANS : begin
-                    if (sclk_fall) begin
-                        bit_cnt <= bit_cnt + 4'd1;
-                    end
-                end
-
-                START : begin
-                    bit_cnt <= 4'd0;
-                end
-            endcase
-        end
-    end
-
-    always @(posedge clk_i or negedge rst_n) begin
-        if (!rst_n) begin
             rx_shift_reg <= 8'd0;
         end else begin
             case (state)
@@ -161,7 +130,7 @@ module spi_slave (
         if (!rst_n) begin
             tx_shift_reg <= 8'd0;
         end else begin
-            if (cs_fall) begin
+            if (state == START) begin
                 tx_shift_reg <= tx_data_i;
             end else if (state == TRANS && sclk_fall) begin
                 tx_shift_reg <= {tx_shift_reg[6:0], 1'b0};
