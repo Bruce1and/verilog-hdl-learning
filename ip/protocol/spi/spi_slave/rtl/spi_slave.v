@@ -8,7 +8,6 @@ module spi_slave (
     input cs_n_i,
 
     // 从机发送信号数据
-    input tx_start_i,
     input [7:0] tx_data_i,
 
     // 从机发送spi数据
@@ -77,7 +76,7 @@ module spi_slave (
             end
 
             TRANS : begin
-                if (bit_cnt == 4'd7 && cs_n_i) begin
+                if (cs_n_i) begin
                     next_state = DONE;
                 end else begin
                     next_state = TRANS;
@@ -172,7 +171,6 @@ module spi_slave (
             case (state)
                 IDLE : begin
                     tx_done_o <= 1'b0;
-                    tx_busy_o <= 1'b0;
                 end
 
                 START, TRANS : begin
@@ -184,6 +182,7 @@ module spi_slave (
 
                 DONE : begin
                     tx_done_o <= 1'b1;
+                    tx_busy_o <= 1'b0;
                     miso_o <= 1'bz;
                 end
             endcase
