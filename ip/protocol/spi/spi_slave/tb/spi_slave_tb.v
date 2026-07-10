@@ -28,7 +28,6 @@ module spi_slave_tb;
         .sclk_i(sclk),
         .mosi_i(mosi),
         .cs_n_i(cs_n),
-        .tx_start_i(tx_start),
         .tx_data_i(tx_data),
         .miso_o(miso),
         .tx_busy_o(tx_busy),
@@ -90,8 +89,6 @@ module spi_slave_tb;
 
         tx_data = 8'hAA;
 
-        tx_start = 1;
-
         #20 tx_start = 0;
 
         #100;
@@ -112,8 +109,6 @@ module spi_slave_tb;
 
         tx_data = 8'h55;
 
-        tx_start = 1;
-
         #20 tx_start = 0;
 
         #100;
@@ -133,8 +128,6 @@ module spi_slave_tb;
         send_data = 8'hFF;
 
         tx_data = 8'hFF;
-
-        tx_start = 1;
 
         #20 tx_start = 0;
 
@@ -163,10 +156,3 @@ module spi_slave_tb;
     end
 
 endmodule
-
-
-
-        
-
-
-

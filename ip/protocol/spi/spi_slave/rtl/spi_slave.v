@@ -11,7 +11,7 @@ module spi_slave (
     input [7:0] tx_data_i,
 
     // 从机发送spi数据
-    output reg miso_o,
+    output miso_o,
     output reg tx_busy_o,
     output reg tx_done_o,
 
@@ -37,9 +37,22 @@ module spi_slave (
 
     reg [3:0] bit_cnt;
 
+    assign miso_o = (!cs_n_i) ? tx_shift_reg[7] : 1'bz;
+
     reg sclk_div;
     wire sclk_rise = ~sclk_div & sclk_i;
     wire sclk_fall = sclk_div & ~sclk_i;
+
+    reg cs_n_div;
+    wire cs_fall = cs_n_div & ~cs_n_i;
+
+    always @(posedge clk_i or negedge rst_n) begin
+        if (!rst_n) begin
+            cs_n_div <= 1'b0;
+        end else begin
+            cs_n_div <= cs_n_i;
+        end
+    end
 
     always @(posedge clk_i or negedge rst_n) begin
         if (!rst_n) begin
@@ -100,7 +113,7 @@ module spi_slave (
         end else begin
             case (state)
                 TRANS : begin
-                    if (sclk_rise) begin
+                    if (sclk_fall) begin
                         bit_cnt <= bit_cnt + 4'd1;
                     end
                 end
@@ -148,17 +161,12 @@ module spi_slave (
         if (!rst_n) begin
             tx_shift_reg <= 8'd0;
         end else begin
-            case (state)
-                START : begin
-                    tx_shift_reg <= tx_data_i;
-                end
+            if (cs_fall) begin
+                tx_shift_reg <= tx_data_i;
+            end else if (state == TRANS && sclk_fall) begin
+                tx_shift_reg <= {tx_shift_reg[6:0], 1'b0};
+            end
 
-                TRANS : begin
-                    if (sclk_fall) begin
-                        tx_shift_reg <= {tx_shift_reg[6:0], 1'b0};
-                    end
-                end
-            endcase
         end
     end
 
@@ -166,7 +174,6 @@ module spi_slave (
         if (!rst_n) begin
             tx_busy_o <= 1'b0;
             tx_done_o <= 1'b0;
-            miso_o <= 1'bz;
         end else begin
             case (state)
                 IDLE : begin
@@ -174,20 +181,38 @@ module spi_slave (
                 end
 
                 START, TRANS : begin
-                    if (sclk_fall) begin
-                        miso_o <= tx_shift_reg[7];
-                    end
                     tx_busy_o <= 1'b1;
                 end
 
                 DONE : begin
                     tx_done_o <= 1'b1;
                     tx_busy_o <= 1'b0;
-                    miso_o <= 1'bz;
                 end
             endcase
         end
     end
+
+    //always @(posedge clk_i or negedge rst_n) begin
+    //    if (!rst_n) begin
+    //        miso_reg <= 1'b0;
+    //        miso_oe <= 1'b0;
+    //    end else begin
+    //        case (state)
+    //            START : begin
+    //                miso_reg <= tx_shift_reg[7];
+    //            end
+    //            TRANS : begin
+    //                miso_reg <= tx_shift_reg[6];
+    //                if (bit_cnt == 4'd8) begin
+    //                    miso_oe <= 1'b0;
+    //                end else begin
+    //                    miso_oe <= 1'b1;
+    //                end
+    //            end
+    //        endcase
+    //    end
+    //end
+endmodule
 
     // always @(posedge clk_i or negedge rst_n) begin
     //     if (!rst_n) begin
@@ -228,4 +253,3 @@ module spi_slave (
     //     end
     // end
 
-endmodule
