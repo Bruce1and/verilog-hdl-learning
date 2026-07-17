@@ -31,6 +31,7 @@ module sync_fifo #(
             wr_ptr <= 0;
             rd_ptr <= 0;
             data_cnt <= 0;
+            rd_data_o <= {DATA_WIDTH{1'b0}};
         end else begin
             case ({wr_en_i, rd_en_i})
                 2'b10 : begin
@@ -61,38 +62,31 @@ module sync_fifo #(
 
                 2'b11 : begin
 
-                    if (!full_o) begin
+                    if (!empty_o) begin
                         fifo_mem[wr_ptr] <= wr_data_i;
+                        rd_data_o <= fifo_mem[rd_ptr];
 
                         if (wr_ptr == FIFO_DEPTH - 1) begin
                             wr_ptr <= 0;
                         end else begin
                             wr_ptr <= wr_ptr + 1;
                         end
-                    end
-
-                    if (!empty_o) begin
-                        rd_data_o <= fifo_mem[rd_ptr];
 
                         if (rd_ptr == FIFO_DEPTH - 1) begin
                             rd_ptr <= 0;
                         end else begin
                             rd_ptr <= rd_ptr + 1;
                         end
+                    end else begin
+                        rd_data_o <= wr_data_i;
                     end
 
+                end
+
+                default : begin
                 end
             endcase
         end
     end
 
 endmodule
-
-
-
-
-
-
-
-
-
