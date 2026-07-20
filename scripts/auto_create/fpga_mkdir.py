@@ -7,7 +7,10 @@ Usage:
 """
 
 from pathlib import Path
+from datetime import date
 import sys
+
+today = date.today().strftime("%Y-%m-%d")
 
 SUBDIRS = [
         "rtl",
@@ -16,79 +19,157 @@ SUBDIRS = [
         "sim/wave",
         ]
 
-def create_folder(target_dir):
+def create_folders(target_dir):
     """Create FPGA project folders."""
 
-    created = 0
+    existing_files = 0
     for sub in SUBDIRS:
         full_dir = target_dir / sub
         if not full_dir.exists():
             full_dir.mkdir(parents = True, exist_ok = True)
-            print(f"created folder: {full_dir}")
+            print(f"Created folder: {full_dir.resolve()}")
         else:
-            created += 1
-    if created == len(SUBDIRS):
+            existing_files += 1
+    if existing_files == len(SUBDIRS):
+        print("Your project floders already existed!")
+
+def create_files(target_dir, module_name):
+    tb_template = f"""\
+/*
+testbench: {module_name}_tb
+Module under test: 
+Description: 
+
+Author: 
+Date: {today}
+Version: 
+
+Updata history:
+
+*/
+
+`timescale 1ns / 1ps
+module {module_name}_tb;
+    reg clk;
+    reg rst_n;
+
+    {module_name} u_{module_name}(
+        .clk_i(clk),
+        .rst_n(rst_n)
+    );
+
+    always #10 clk = ~clk;
+
+    initial begin
+        clk = 0;
+        rst_n = 0;
+
+        #100 rst_n = 1;
+
+        #20;
+        #100;
+        $finish;
+    end
+
+    initial begin
+        $dumpfile("sim/wave/{module_name}_tb.vcd");
+        $dumpvars(0, {module_name}_tb);
+    end
+
+endmodule"""
+
+    rtl_template = f"""\
+/*
+Module: {module_name}
+Description: 
+Function: 
+
+Author: 
+Date: {today}
+Version: 
+
+Updata history:
+
+*/
+
+module {module_name} #(
+
+)(
+    input clk_i,
+    input rst_n
+
+);
+
+
+    always @(posedge clk_i or negedge rst_n) begin
+        if(!rst_n) begin
+            
+        end else begin
+            
+        end
+    end
+
+endmodule"""
+
+    file_index = {"rtl": f"{module_name}.v", "tb": f"{module_name}_tb.v"}
+    template = {"rtl": rtl_templata, "tb": tb_template}
+    existing_files = 0
+    for floder in file_index:
+        file_dir = target_dir/floder/file_index(floder)
+        if not file_dir.exists():
+            file_dir.write_text(template[floder])
+            print(f"Created file: {file_dir.resolve()}")
+        else:
+            existing_files += 1
+
+    if len(file_index) == existing_files:
         print("Your project files already existed!")
 
-def create_file(target_dir, module_name):
-    """Create FPGA project files"""
+def files_detect(target_dir, module_name):
+    file_index = {"rtl": f"{module_name}.v", "tb": f"{module_name}_tb.v"}
+    for floder in file_index:
+        file_path = target_dir/folder/file_index(folder)
+        if file_path.exists():
+            return file_path, files_existing
+        
+    
 
-    rtl_file = target_dir / "rtl" / f"{module_name}.v"
-    tb_file = target_dir / "tb" / f"{module_name}_tb.v"
-
-    if rtl_file.exists():
-        print("The RTL file already exists")
-    else:
-        with open(rtl_file, "w") as f:
-            f.write("/*\n")
-            f.write(f"Module: {module_name}\n")
-            f.write("Description: \n")
-            f.write("\n")
-            f.write("Function: \n")
-            f.write("*/\n")
-            f.write("\n")
-            f.write(f"module {module_name} (\n")
-            f.write("input clk_i,\n")
-            f.write("input rst_n,\n")
-            f.write(");\n")
-            f.write("\n")
-            f.write("endmodule")
-            print(f"{rtl_file} was created.\n")
-
-    if tb_file.exists():
-        print("The tb file already exists")
-    else:
-        with open(tb_file, "w") as f:
-            f.write(f"module {module_name}_tb;\n")
-            f.write("reg clk;\n")
-            f.write("reg rst_n;\n")
-            f.write("\n")
-            f.write("always #10 clk = ~clk;\n")
-            f.write("initial begin \n")
-            f.write("clk = 1'b0;\n")
-            f.write("rst_n = 1'b0;\n")
-            f.write("#100\n")
-            f.write("rst_n = ~rst_n\n")
-            f.write("end\n")
-            f.write("\n")
-            f.write("endmodule")
-            print(f"{tb_file} was created.\n")
 
 def main():
     current_dir = Path.cwd()
+    if len(sys.argv) < 2:
+        print("Usage: python fpga_mkdir.py <module name>.")
+        sys.exit(1)
+    if sys.argv[1].isidentifier():
+        module_name = sys.argv[1]
+    else:
+        print("Please enter a valid module name.")
+        sys.exit(1)
     match len(sys.argv):
         case 2:
-            module_name = sys.argv[1]
             target_dir = current_dir / module_name
         case 3:
-            module_name = sys.argv[1]
             target_dir = Path(sys.argv[2]) / module_name
         case _:
-            print("rule: python new_module.py <module name>")
+            print("Usage: python fpga_mkdir.py <module name>.")
             sys.exit(1)
-    create_folder(target_dir)
-    create_file(target_dir, module_name)
-    print("completed!")
+
+    print(f"Module name: {module_name}")
+    print(f"Project path: {target_dir.resolve()}")
+
+    file_pathfiles_detect(target_dir, module_name)
+
+    while True:
+        start = input("Are you sure you want to create files? (y/n): ")
+        if start == "y":
+            create_folders(target_dir)
+            create_file(target_dir, module_name)
+            print("completed!")
+            break
+        elif start == "n":
+            sys.exit(1)
+        else:
+            continue
 
 if __name__ == "__main__":
     main()
